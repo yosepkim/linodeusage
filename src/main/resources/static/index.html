@@ -1,0 +1,144 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Linode Usage Report</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/billboard.js/dist/billboard.min.js"></script>
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/billboard.js/dist/billboard.min.css" />
+    <link rel="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css"
+          type="text/css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js">
+    </script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/1.0.1/Chart.min.js">
+    </script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <style>
+        body {
+            text-align: center;
+            font-family:"Calibri", sans-serif;
+        }
+
+        h2 {
+            text-align: center;
+            font-family: "Verdana", sans-serif;
+            font-size: 40px;
+        }
+        div.row {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+        div.col {
+            display: flex;
+            flex-direction: column;
+            flex-basis: 100%;
+            flex: 1;
+        }
+        hr {
+            margin-top: 50px;
+        }
+    </style>
+</head>
+<body>
+    <div class="col-xs-12 text-center" style="margin-bottom:60px">
+        <h2>Linode Object Storage Usage</h2>
+    </div>
+
+    Linode API Key: <input type="password" id="token" style="width: 360px" /> <input type="button" id="submit" value="Submit" />
+    <p style="font-size: small">You may get your access token by following this <a href="https://techdocs.akamai.com/cloud-computing/docs/manage-personal-access-tokens">article</a></p>
+    <div id="dataPanel" style="display:none">
+        <hr/>
+        <p>Current Monthly Data Transfer Usage: <span id="dataTransferUsage"></span></p>
+        <p>Total Bucket Count: <span id="totalBucketCount"></span></p>
+        <p>Total Object count: <span id="totalItemCount"></span></p>
+        <p>Total Storage Size: <span id="totalStorageSize"></span> Byte</p>
+        <hr/>
+        <div class="table" >
+            <h3>Total item count per region</h3>
+            <div class="row">
+                <div class="col">
+                    <div id="donut-chart-item-region"></div>
+                </div>
+                <div class="col">
+                    <table id="itemsPerRegion"></table>
+                </div>
+            </div>
+        </div>
+        <hr/>
+        <div class="table">
+            <h3>Total size per region</h3>
+            <div class="row">
+                <div class="col">
+                    <div id="donut-chart-size-region"></div>
+                </div>
+                <div class="col">
+                    <table id="sizePerRegion"></table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function renderSubPanel(data, targetTag, title, bindTo) {
+            let content = "";
+            const usagePerRegion = Object.keys(data).map(key => {
+                content += "<tr><td>" + key + "</td><td>" + data[key] + "</td><tr/>";
+                return [key, data[key]];
+            });
+
+            $(targetTag).html(content);
+
+            bb.generate({
+                data: {
+                    columns: usagePerRegion,
+                    type: "donut",
+                    onclick: function (d, i) {
+                        console.log("onclick", d, i);
+                    },
+                    onover: function (d, i) {
+                        console.log("onover", d, i);
+                    },
+                    onout: function (d, i) {
+                        console.log("onout", d, i);
+                    },
+                },
+                donut: {
+                    title: title,
+                },
+                bindto: bindTo,
+            });
+        }
+        $('#submit').on("click", function (event) {
+            const token = $("#token").val();
+            $('#submit').prop('disabled', true);
+            $.ajax({
+              url: "/object-storage/current/usage",
+              headers: {
+                "token": token
+              },
+              success: function(result) {
+                $('#submit').prop('disabled', false);
+                $('#dataPanel').css('display', 'block');
+                $('#dataTransferUsage').text(result.dataTransferUsage);
+                $('#totalBucketCount').text(result.totalBucketCount);
+                $('#totalItemCount').text(result.totalItemCount);
+                $('#totalStorageSize').text(result.totalStorageSize);
+
+                renderSubPanel(result.totalItemPerRegion, '#itemsPerRegion', 'Items per region', "#donut-chart-item-region");
+                renderSubPanel(result.totalSizePerRegion, '#sizePerRegion', 'Size per region', "#donut-chart-size-region");
+              },
+              error: function(xhr, ajaxOptions, thrownError) {
+                 $('#submit').prop('disabled', false);
+                 alert('Uh, oh! Something bad happened. Try again!');
+                console.log(xhr.status);
+                console.log(thrownError);
+              }
+            });
+        });
+    </script>
+</body>
+</html>
